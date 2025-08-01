@@ -1,0 +1,585 @@
+<script>
+            const occupiedRoomsByType = roomTypes.map(type => {
+                return rooms.filter(room => room.type === type && room.status === 'occupied').length;
+            });
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: roomTypes.map(t => t.charAt(0).toUpperCase() + t.slice(1)),
+                    datasets: [{
+                        label: 'Occupied',
+                        data: occupiedRoomsByType,
+                        backgroundColor: 'rgba(54, 162, 235, 0.7)'
+                    }, {
+                        label: 'Available',
+                        data: totalRoomsByType.map((total, i) => total - occupiedRoomsByType[i]),
+                        backgroundColor: 'rgba(75, 192, 192, 0.7)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                }
+            });
+        }
+
+        // Room Management
+        function renderRooms(filteredRooms = null) {
+            const list = filteredRooms || rooms;
+            roomsContainer.innerHTML = '';
+            list.forEach(room => {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-lg shadow p-4 room-card';
+                card.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-lg font-semibold text-gray-800">Room ${room.number}</h3>
+                        <span class="px-2 py-1 text-xs rounded-full ${room.status === 'available' ? 'bg-green-100 text-green-800' : 
+                            room.status === 'occupied' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}">
+                            ${room.status}
+                        </span>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-1">${room.type.charAt(0).toUpperCase() + room.type.slice(1)}</p>
+                    <p class="text-sm text-gray-600 mb-2">Capacity: ${room.capacity} | ${formatCurrency(room.price)}/night</p>
+                    <p class="text-sm text-gray-500 mb-3">${room.description}</p>
+                    <div class="flex space-x-2">
+                        <button onclick="openRoomModal(${room.id})" class="text-blue-600 hover:text-blue-800 text-sm">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button onclick="deleteRoom(${room.id})" class="text-red-600 hover:text-red-800 text-sm">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                `;
+                roomsContainer.appendChild(card);
+            });
+        }
+
+        function openRoomModal(id = null) {
+            if (id) {
+                const room = getRoomById(id);
+                roomModalTitle.textContent = 'Edit Room';
+                roomIdInput.value = room.id;
+                roomNumberInput.value = room.number;
+                roomTypeInput.value = room.type;
+                roomPriceInput.value = room.price;
+                roomCapacityInput.value = room.capacity;
+                roomStatusInput.value = room.status;
+                roomDescriptionInput.value = room.description;
+            } else {
+                roomModalTitle.textContent = 'Add New Room';
+                roomForm.reset();
+                roomIdInput.value = '';
+            }
+            roomModal.classList.remove('hidden');
+        }
+
+        function closeRoomModal() {
+            roomModal.classList.add('hidden');
+        }
+
+        function saveRoom() {
+            const room = {
+                id: roomIdInput.value ? parseInt(roomIdInput.value) : Date.now(),
+                number: roomNumberInput.value,
+                type: roomTypeInput.value,
+                price: parseFloat(roomPriceInput.value),
+                capacity: parseInt(roomCapacityInput.value),
+                status: roomStatusInput.value,
+                description: roomDescriptionInput.value
+            };
+
+            if (roomIdInput.value) {
+                const index = rooms.findIndex(r => r.id === room.id);
+                rooms[index] = room;
+            } else {
+                rooms.push(room);
+            }
+
+            saveDataToLocalStorage();
+            renderRooms();
+            closeRoomModal();
+        }
+
+        function deleteRoom(id) {
+            if (confirm('Are you sure you want to delete this room?')) {
+                rooms = rooms.filter(r => r.id !== id);
+                saveDataToLocalStorage();
+                renderRooms();
+            }
+        }
+
+        // Customer Management
+        function renderCustomers(filteredCustomers = null) {
+            const list = filteredCustomers || customers;
+            customersTableBody.innerHTML = '';
+            list.forEach(customer => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">${customer.firstName} ${customer.lastName}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${customer.email}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${customer.phone}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${customer.idType.replace('_', ' ')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${customer.idNumber}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <button onclick="openCustomerModal(${customer.id})" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteCustomer(${customer.id})" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                customersTableBody.appendChild(tr);
+            });
+        }
+
+        function openCustomerModal(id = null) {
+            if (id) {
+                const customer = getCustomerById(id);
+                customerModalTitle.textContent = 'Edit Customer';
+                customerIdInput.value = customer.id;
+                customerFirstNameInput.value = customer.firstName;
+                customerLastNameInput.value = customer.lastName;
+                customerEmailInput.value = customer.email;
+                customerPhoneInput.value = customer.phone;
+                customerIdTypeInput.value = customer.idType;
+                customerIdNumberInput.value = customer.idNumber;
+                customerAddressInput.value = customer.address;
+                customerNotesInput.value = customer.notes;
+            } else {
+                customerModalTitle.textContent = 'Add New Customer';
+                customerForm.reset();
+                customerIdInput.value = '';
+            }
+            customerModal.classList.remove('hidden');
+        }
+
+        function closeCustomerModal() {
+            customerModal.classList.add('hidden');
+        }
+
+        function saveCustomer() {
+            const customer = {
+                id: customerIdInput.value ? parseInt(customerIdInput.value) : Date.now(),
+                firstName: customerFirstNameInput.value,
+                lastName: customerLastNameInput.value,
+                email: customerEmailInput.value,
+                phone: customerPhoneInput.value,
+                idType: customerIdTypeInput.value,
+                idNumber: customerIdNumberInput.value,
+                address: customerAddressInput.value,
+                notes: customerNotesInput.value
+            };
+
+            if (customerIdInput.value) {
+                const index = customers.findIndex(c => c.id === customer.id);
+                customers[index] = customer;
+            } else {
+                customers.push(customer);
+            }
+
+            saveDataToLocalStorage();
+            renderCustomers();
+            closeCustomerModal();
+        }
+
+        function deleteCustomer(id) {
+            if (confirm('Are you sure you want to delete this customer?')) {
+                customers = customers.filter(c => c.id !== id);
+                saveDataToLocalStorage();
+                renderCustomers();
+            }
+        }
+
+        function filterCustomers() {
+            const search = customerSearchInput.value.toLowerCase();
+            const filtered = customers.filter(c => 
+                c.firstName.toLowerCase().includes(search) ||
+                c.lastName.toLowerCase().includes(search) ||
+                c.email.toLowerCase().includes(search)
+            );
+            renderCustomers(filtered);
+        }
+
+        // Booking Management
+        function renderBookings() {
+            bookingsTableBody.innerHTML = '';
+            bookings.forEach(booking => {
+                const room = getRoomById(booking.roomId);
+                const customer = getCustomerById(booking.customerId);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">#${booking.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${customer.firstName} ${customer.lastName}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${room.number} (${room.type})</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${formatDate(booking.checkIn)} - ${formatDate(booking.checkOut)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs rounded-full ${booking.status === 'confirmed' ? 'bg-green-100 text-green-800' : 
+                            booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}">
+                            ${booking.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <button onclick="openBookingModal(${booking.id})" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteBooking(${booking.id})" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <button onclick="showInvoice(${booking.id})" class="text-purple-600 hover:text-purple-800">
+                            <i class="fas fa-file-invoice"></i>
+                        </button>
+                    </td>
+                `;
+                bookingsTableBody.appendChild(tr);
+            });
+
+            populateBookingCustomers();
+            updateAvailableRooms();
+        }
+
+        function openBookingModal(id = null) {
+            if (id) {
+                const booking = getBookingById(id);
+                bookingModalTitle.textContent = 'Edit Booking';
+                bookingIdInput.value = booking.id;
+                bookingCustomerInput.value = booking.customerId;
+                bookingCheckInInput.value = booking.checkIn;
+                bookingCheckOutInput.value = booking.checkOut;
+                bookingAdultsInput.value = booking.adults;
+                bookingChildrenInput.value = booking.children;
+                bookingStatusInput.value = booking.status;
+                bookingNotesInput.value = booking.notes;
+
+                const room = getRoomById(booking.roomId);
+                bookingRoomTypeInput.value = room.type;
+                updateAvailableRooms(() => {
+                    bookingRoomInput.value = room.id;
+                    updateBookingPrice();
+                });
+            } else {
+                bookingModalTitle.textContent = 'New Booking';
+                bookingForm.reset();
+                bookingIdInput.value = '';
+                const today = new Date();
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                bookingCheckInInput.valueAsDate = today;
+                bookingCheckOutInput.valueAsDate = tomorrow;
+                updateBookingDates();
+            }
+            bookingModal.classList.remove('hidden');
+        }
+
+        function closeBookingModal() {
+            bookingModal.classList.add('hidden');
+        }
+
+        function populateBookingCustomers() {
+            bookingCustomerInput.innerHTML = '<option value="">Select Customer</option>';
+            customers.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = `${c.firstName} ${c.lastName}`;
+                bookingCustomerInput.appendChild(opt);
+            });
+        }
+
+        function updateAvailableRooms(callback = null) {
+            const type = bookingRoomTypeInput.value;
+            const checkIn = bookingCheckInInput.value;
+            const checkOut = bookingCheckOutInput.value;
+            const availableRooms = getAvailableRooms(checkIn, checkOut, type);
+
+            bookingRoomInput.innerHTML = '<option value="">Select a room</option>';
+            availableRooms.forEach(room => {
+                const opt = document.createElement('option');
+                opt.value = room.id;
+                opt.textContent = `${room.number} (${room.type}) - ${formatCurrency(room.price)}`;
+                bookingRoomInput.appendChild(opt);
+            });
+
+            if (callback) callback();
+            updateBookingPrice();
+        }
+
+        function updateBookingDates() {
+            updateAvailableRooms();
+            updateBookingPrice();
+        }
+
+        function updateBookingPrice() {
+            const roomId = parseInt(bookingRoomInput.value);
+            const room = getRoomById(roomId);
+            const nights = calculateNights(bookingCheckInInput.value, bookingCheckOutInput.value);
+
+            if (room && nights) {
+                const subtotal = room.price * nights;
+                const tax = subtotal * 0.10;
+                const total = subtotal + tax;
+
+                bookingRoomPriceEl.textContent = formatCurrency(room.price);
+                bookingNightsEl.textContent = nights;
+                bookingTaxEl.textContent = formatCurrency(tax);
+                bookingTotalEl.textContent = formatCurrency(total);
+            } else {
+                bookingRoomPriceEl.textContent = formatCurrency(0);
+                bookingNightsEl.textContent = 0;
+                bookingTaxEl.textContent = formatCurrency(0);
+                bookingTotalEl.textContent = formatCurrency(0);
+            }
+        }
+
+        function saveBooking() {
+            const roomId = parseInt(bookingRoomInput.value);
+            const room = getRoomById(roomId);
+            const nights = calculateNights(bookingCheckInInput.value, bookingCheckOutInput.value);
+            const subtotal = room.price * nights;
+            const tax = subtotal * 0.10;
+            const total = subtotal + tax;
+
+            const booking = {
+                id: bookingIdInput.value ? parseInt(bookingIdInput.value) : Date.now(),
+                customerId: parseInt(bookingCustomerInput.value),
+                roomId,
+                checkIn: bookingCheckInInput.value,
+                checkOut: bookingCheckOutInput.value,
+                adults: parseInt(bookingAdultsInput.value),
+                children: parseInt(bookingChildrenInput.value),
+                status: bookingStatusInput.value,
+                notes: bookingNotesInput.value,
+                totalAmount: total,
+                paymentStatus: 'pending'
+            };
+
+            if (bookingIdInput.value) {
+                const index = bookings.findIndex(b => b.id === booking.id);
+                bookings[index] = booking;
+            } else {
+                bookings.push(booking);
+            }
+
+            // Update room status
+            const roomIndex = rooms.findIndex(r => r.id === roomId);
+            if (booking.status === 'confirmed' || booking.status === 'pending') {
+                rooms[roomIndex].status = 'occupied';
+            } else {
+                rooms[roomIndex].status = 'available';
+            }
+
+            saveDataToLocalStorage();
+            renderBookings();
+            closeBookingModal();
+        }
+
+        function deleteBooking(id) {
+            if (confirm('Are you sure you want to delete this booking?')) {
+                const booking = getBookingById(id);
+                bookings = bookings.filter(b => b.id !== id);
+
+                // Reset room status
+                const roomIndex = rooms.findIndex(r => r.id === booking.roomId);
+                rooms[roomIndex].status = 'available';
+
+                saveDataToLocalStorage();
+                renderBookings();
+            }
+        }
+
+        // Payment Management
+        function renderPayments() {
+            paymentsTableBody.innerHTML = '';
+            payments.forEach(payment => {
+                const booking = getBookingById(payment.bookingId);
+                const customer = getCustomerById(booking.customerId);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">#${payment.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">#${booking.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${customer.firstName} ${customer.lastName}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${formatCurrency(payment.amount)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${payment.method.replace('_', ' ')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs rounded-full ${payment.status === 'paid' ? 'bg-green-100 text-green-800' : 
+                            payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}">
+                            ${payment.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <button onclick="openPaymentModal(${payment.id})" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deletePayment(${payment.id})" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                paymentsTableBody.appendChild(tr);
+            });
+
+            populatePaymentBookings();
+        }
+
+        function populatePaymentBookings() {
+            paymentBookingInput.innerHTML = '<option value="">Select Booking</option>';
+            bookings.forEach(b => {
+                const customer = getCustomerById(b.customerId);
+                const opt = document.createElement('option');
+                opt.value = b.id;
+                opt.textContent = `#${b.id} - ${customer.firstName} ${customer.lastName} (${formatCurrency(b.totalAmount)})`;
+                paymentBookingInput.appendChild(opt);
+            });
+        }
+
+        function openPaymentModal(id = null) {
+            if (id) {
+                const payment = getPaymentById(id);
+                paymentModalTitle.textContent = 'Edit Payment';
+                paymentIdInput.value = payment.id;
+                paymentBookingInput.value = payment.bookingId;
+                paymentAmountInput.value = payment.amount;
+                paymentMethodInput.value = payment.method;
+                paymentDateInput.value = payment.date;
+                paymentStatusInput.value = payment.status;
+                paymentNotesInput.value = payment.notes;
+            } else {
+                paymentModalTitle.textContent = 'Record Payment';
+                paymentForm.reset();
+                paymentIdInput.value = '';
+                paymentDateInput.valueAsDate = new Date();
+            }
+            toggleCreditCardFields();
+            paymentModal.classList.remove('hidden');
+        }
+
+        function closePaymentModal() {
+            paymentModal.classList.add('hidden');
+        }
+
+        function toggleCreditCardFields() {
+            const show = paymentMethodInput.value === 'credit_card';
+            paymentCardFields.style.display = show ? 'block' : 'none';
+            paymentCardNumberInput.required = show;
+            paymentCardCvvInput.required = show;
+            paymentCardExpiryInput.required = show;
+            paymentCardNameInput.required = show;
+        }
+
+        function savePayment() {
+            const payment = {
+                id: paymentIdInput.value ? parseInt(paymentIdInput.value) : Date.now(),
+                bookingId: parseInt(paymentBookingInput.value),
+                amount: parseFloat(paymentAmountInput.value),
+                method: paymentMethodInput.value,
+                status: paymentStatusInput.value,
+                date: paymentDateInput.value,
+                notes: paymentNotesInput.value
+            };
+
+            if (paymentIdInput.value) {
+                const index = payments.findIndex(p => p.id === payment.id);
+                payments[index] = payment;
+            } else {
+                payments.push(payment);
+            }
+
+            // Update booking payment status
+            const booking = getBookingById(payment.bookingId);
+            const bookingIndex = bookings.findIndex(b => b.id === booking.id);
+            bookings[bookingIndex].paymentStatus = payment.status;
+
+            saveDataToLocalStorage();
+            renderPayments();
+            closePaymentModal();
+        }
+
+        function deletePayment(id) {
+            if (confirm('Are you sure you want to delete this payment?')) {
+                payments = payments.filter(p => p.id !== id);
+                saveDataToLocalStorage();
+                renderPayments();
+            }
+        }
+
+        // Invoice
+        function showInvoice(bookingId) {
+            const booking = getBookingById(bookingId);
+            const customer = getCustomerById(booking.customerId);
+            const room = getRoomById(booking.roomId);
+            const nights = calculateNights(booking.checkIn, booking.checkOut);
+            const subtotal = room.price * nights;
+            const tax = subtotal * 0.10;
+            const total = subtotal + tax;
+
+            invoiceContainer.innerHTML = `
+                <div class="flex justify-between items-center mb-4">
+                    <h1 class="text-2xl font-bold text-gray-800">Luxury Haven Hotel</h1>
+                    <div class="text-right">
+                        <p class="text-sm text-gray-600">Invoice #INV-${booking.id}</p>
+                        <p class="text-sm text-gray-600">Date: ${formatDate(new Date())}</p>
+                    </div>
+                </div>
+                <div class="border-b border-gray-200 pb-4 mb-4">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-2">Bill To:</h2>
+                    <p class="text-gray-700">${customer.firstName} ${customer.lastName}</p>
+                    <p class="text-gray-600">${customer.email}</p>
+                    <p class="text-gray-600">${customer.address}</p>
+                </div>
+                <div class="mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Booking Details</h3>
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b">
+                                <th class="text-left py-2">Room</th>
+                                <th class="text-left py-2">Check-in</th>
+                                <th class="text-left py-2">Check-out</th>
+                                <th class="text-left py-2">Nights</th>
+                                <th class="text-right py-2">Price/Night</th>
+                                <th class="text-right py-2">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="py-2">${room.number} (${room.type})</td>
+                                <td class="py-2">${formatDate(booking.checkIn)}</td>
+                                <td class="py-2">${formatDate(booking.checkOut)}</td>
+                                <td class="py-2">${nights}</td>
+                                <td class="py-2 text-right">${formatCurrency(room.price)}</td>
+                                <td class="py-2 text-right">${formatCurrency(subtotal)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="border-t border-gray-200 pt-4">
+                    <div class="flex justify-end">
+                        <div class="w-1/3">
+                            <div class="flex justify-between mb-2">
+                                <span>Subtotal:</span>
+                                <span>${formatCurrency(subtotal)}</span>
+                            </div>
+                            <div class="flex justify-between mb-2">
+                                <span>Tax (10%):</span>
+                                <span>${formatCurrency(tax)}</span>
+                            </div>
+                            <div class="flex justify-between font-bold text-lg border-t pt-2">
+                                <span>Total:</span>
+                                <span>${formatCurrency(total)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            invoiceModal.classList.remove('hidden');
+        }
+
+        function printInvoice() {
+            window.print();
+        }
+
+        // Initialize
+        initApp();
+    </script>
+</body>
+</html>
